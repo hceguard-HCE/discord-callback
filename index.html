@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Login Discord</title>
+<style>
+body {
+    margin: 0;
+    overflow: hidden;
+    background: #000; /* Fondo negro */
+    font-family: 'Segoe UI', sans-serif;
+    color: #F63860;
+}
+#codeContainer {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0,0,0,0.85);
+    padding: 30px 40px;
+    border-radius: 15px;
+    text-align: center;
+    box-shadow: 0 0 40px rgba(246,56,96,0.3);
+    z-index: 10;
+}
+#codeContainer h2 {
+    color: #F63860;
+    text-shadow: 0 0 15px #F63860;
+    margin-bottom: 15px;
+}
+#code {
+    width: 400px;
+    font-size: 1.3em;
+    padding: 12px;
+    border-radius: 8px;
+    border: none;
+    text-align: center;
+    background: rgba(246,56,96,0.1);
+    color: #F63860;
+    box-shadow: 0 0 20px rgba(246,56,96,0.3);
+}
+#codeContainer p {
+    margin-top: 12px;
+    font-size: 0.95em;
+    color: #ff8aa0;
+}
+canvas {
+    display: block;
+}
+</style>
+</head>
+<body>
+<canvas id="starCanvas"></canvas>
+<div id="codeContainer">
+    <h2>Login completado</h2>
+    <p>Tu código de autorización:</p>
+    <input type="text" id="code" readonly>
+    <p>Cópialo y pégalo en tu app.</p>
+</div>
+
+<script>
+// Canvas de constelaciones
+const canvas = document.getElementById('starCanvas');
+const ctx = canvas.getContext('2d');
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+const stars = [];
+const starCount = 120;
+
+// Generar estrellas
+for(let i=0;i<starCount;i++){
+    stars.push({
+        x: Math.random()*canvas.width,
+        y: Math.random()*canvas.height,
+        r: Math.random()*2 + 1,
+        dx: (Math.random()-0.5)*0.3,
+        dy: (Math.random()-0.5)*0.3
+    });
+}
+
+// Animación
+function drawStars(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+
+    stars.forEach(star=>{
+        star.x += star.dx;
+        star.y += star.dy;
+
+        if(star.x<0||star.x>canvas.width) star.dx*=-1;
+        if(star.y<0||star.y>canvas.height) star.dy*=-1;
+
+        ctx.beginPath();
+        ctx.arc(star.x, star.y, star.r,0,Math.PI*2);
+        ctx.fillStyle = "#F63860";
+        ctx.fill();
+    });
+
+    for(let i=0;i<stars.length;i++){
+        for(let j=i+1;j<stars.length;j++){
+            let dx = stars[i].x - stars[j].x;
+            let dy = stars[i].y - stars[j].y;
+            let dist = Math.sqrt(dx*dx + dy*dy);
+            if(dist<120){
+                ctx.beginPath();
+                ctx.moveTo(stars[i].x, stars[i].y);
+                ctx.lineTo(stars[j].x, stars[j].y);
+                ctx.strokeStyle = `rgba(246,56,96,${1-dist/120})`;
+                ctx.stroke();
+            }
+        }
+    }
+
+    requestAnimationFrame(drawStars);
+}
+drawStars();
+
+// Capturar código de Discord
+const params = new URLSearchParams(window.location.search);
+const code = params.get('code');
+document.getElementById('code').value = code || "No se recibió código";
+
+window.addEventListener('resize',()=>{
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+});
+</script>
+</body>
+</html>
