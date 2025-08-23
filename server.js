@@ -1,6 +1,6 @@
 import express from "express";
 import fetch from "node-fetch";
-import dotenv from "dotenv";
+import crypto from "crypto"; // ✅ import normal
 
 dotenv.config();
 
@@ -69,3 +69,4 @@ app.get("/callback", async (req, res) => {
 });
 
 app.listen(PORT, () => console.log(`Servidor listo en puerto ${PORT}`));
+
