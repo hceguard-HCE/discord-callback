@@ -96,7 +96,11 @@ app.post("/token", async (req, res) => {
   }
 });
 
+app.get("/ping", (req, res) => {
+  res.send("OK"); // Devuelve siempre 200 OK
+});
 // Iniciar servidor
 app.listen(port, () => {
   console.log(`Servidor corriendo en puerto ${port}`);
 });
+
