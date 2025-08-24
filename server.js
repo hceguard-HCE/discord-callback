@@ -5,15 +5,10 @@ import crypto from "crypto";
 const app = express();
 const port = process.env.PORT || 5000;
 
-// Configuración de CORS si lo necesitas
-app.use((req, res, next) => {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  next();
-});
+const sessions = new Map(); // almacenar code_verifier con state
 
-// Función para generar code verifier y challenge
 function base64UrlEncode(buffer) {
-  return buffer.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+  return buffer.toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
 }
 
 function generateCodeVerifier() {
@@ -22,34 +17,42 @@ function generateCodeVerifier() {
 }
 
 function generateCodeChallenge(verifier) {
-  const hash = crypto.createHash('sha256').update(verifier).digest();
+  const hash = crypto.createHash("sha256").update(verifier).digest();
   return base64UrlEncode(hash);
 }
 
-// Ruta principal de OAuth2
+// Ruta para iniciar OAuth
 app.get("/auth", (req, res) => {
   const CLIENT_ID = process.env.CLIENT_ID;
-  const REDIRECT_URI = process.env.REDIRECT_URI; // poner https://tu-app.onrender.com/callback
+  const REDIRECT_URI = process.env.REDIRECT_URI;
+
   const codeVerifier = generateCodeVerifier();
   const codeChallenge = generateCodeChallenge(codeVerifier);
+  const state = crypto.randomBytes(16).toString("hex");
 
-  // Guardar codeVerifier en memoria o DB según tu lógica
-  // Por simplicidad, aquí lo retornamos
+  // Guardamos el codeVerifier usando el state
+  sessions.set(state, codeVerifier);
+
   res.send({
-    url: `https://discord.com/api/oauth2/authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=code&scope=identify&code_challenge=${codeChallenge}&code_challenge_method=S256`,
-    codeVerifier
+    url: `https://discord.com/api/oauth2/authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(
+      REDIRECT_URI
+    )}&response_type=code&scope=identify%20email&code_challenge=${codeChallenge}&code_challenge_method=S256&state=${state}`
   });
 });
 
 // Callback de Discord
 app.get("/callback", async (req, res) => {
-  const code = req.query.code;
+  const { code, state } = req.query;
   const CLIENT_ID = process.env.CLIENT_ID;
   const REDIRECT_URI = process.env.REDIRECT_URI;
-  const codeVerifier = req.query.code_verifier; // si lo guardaste en memoria/DB, recupéralo
 
-  if (!code) {
-    return res.send("No se recibió código de autorización");
+  if (!code || !state) {
+    return res.status(400).send("Falta code o state");
+  }
+
+  const codeVerifier = sessions.get(state);
+  if (!codeVerifier) {
+    return res.status(400).send("State inválido o expirado");
   }
 
   const data = new URLSearchParams();
@@ -67,7 +70,14 @@ app.get("/callback", async (req, res) => {
     });
 
     const tokenJson = await tokenResp.json();
-    res.send(tokenJson); // muestra access_token, refresh_token, etc.
+
+    // Obtener datos del usuario
+    const userResp = await fetch("https://discord.com/api/users/@me", {
+      headers: { Authorization: `Bearer ${tokenJson.access_token}` }
+    });
+    const user = await userResp.json();
+
+    res.send({ tokens: tokenJson, user });
   } catch (err) {
     res.send({ error: err.message });
   }
